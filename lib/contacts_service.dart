@@ -94,7 +94,7 @@ class ContactsService {
       _channel.invokeMethod('deleteContact', Contact._toMap(contact));
 
   /// Updates the [contact] if it has a valid identifier
-  static Future updateContact(Contact contact) =>
+  static Future updateContact(Contact? contact) =>
       _channel.invokeMethod('updateContact', Contact._toMap(contact));
 
   static Future<Contact> openContactForm(
@@ -247,40 +247,40 @@ class Contact {
     }
   }
 
-  static Map _toMap(Contact contact) {
+  static Map _toMap(Contact? contact) {
     var emails = [];
-    for (Item email in contact.emails ?? []) {
+    for (Item email in contact?.emails ?? []) {
       emails.add(Item._toMap(email));
     }
     var phones = [];
-    for (Item phone in contact.phones ?? []) {
+    for (Item phone in contact?.phones ?? []) {
       phones.add(Item._toMap(phone));
     }
     var postalAddresses = [];
-    for (PostalAddress address in contact.postalAddresses ?? []) {
+    for (PostalAddress address in contact?.postalAddresses ?? []) {
       postalAddresses.add(PostalAddress._toMap(address));
     }
 
-    final birthday = contact.birthday == null
+    final birthday = contact?.birthday == null
         ? null
-        : "${contact.birthday!.year.toString()}-${contact.birthday!.month.toString().padLeft(2, '0')}-${contact.birthday!.day.toString().padLeft(2, '0')}";
+        : "${contact?.birthday!.year.toString()}-${contact?.birthday!.month.toString().padLeft(2, '0')}-${contact?.birthday!.day.toString().padLeft(2, '0')}";
 
     return {
-      "identifier": contact.identifier,
-      "displayName": contact.displayName,
-      "givenName": contact.givenName,
-      "middleName": contact.middleName,
-      "familyName": contact.familyName,
-      "prefix": contact.prefix,
-      "suffix": contact.suffix,
-      "company": contact.company,
-      "jobTitle": contact.jobTitle,
-      "androidAccountType": contact.androidAccountTypeRaw,
-      "androidAccountName": contact.androidAccountName,
+      "identifier": contact?.identifier,
+      "displayName": contact?.displayName,
+      "givenName": contact?.givenName,
+      "middleName": contact?.middleName,
+      "familyName": contact?.familyName,
+      "prefix": contact?.prefix,
+      "suffix": contact?.suffix,
+      "company": contact?.company,
+      "jobTitle": contact?.jobTitle,
+      "androidAccountType": contact?.androidAccountTypeRaw,
+      "androidAccountName": contact?.androidAccountName,
       "emails": emails,
       "phones": phones,
       "postalAddresses": postalAddresses,
-      "avatar": contact.avatar,
+      "avatar": contact?.avatar,
       "birthday": birthday
     };
   }
