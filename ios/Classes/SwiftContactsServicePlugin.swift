@@ -7,20 +7,34 @@ import ContactsUI
 public class SwiftContactsServicePlugin: NSObject, FlutterPlugin, CNContactViewControllerDelegate, CNContactPickerDelegate {
     private var result: FlutterResult? = nil
     private var localizedLabels: Bool = true
-    private let rootViewController: UIViewController
+    /// Con el ciclo de vida de escenas (obligatorio al compilar contra el SDK
+    /// de iOS 26+) la ventana ya no cuelga del app delegate, y en el momento
+    /// del registro del plugin todavia no existe. Hay que resolverla tarde,
+    /// desde la escena activa.
+    private var resolvedRootViewController: UIViewController? {
+        // La clase esta anotada @available(iOS 9.0, *), asi que las APIs de
+        // escenas (iOS 13+) necesitan su propia guarda.
+        if #available(iOS 13.0, *) {
+            let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+            let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+            if let window = scene?.windows.first(where: { $0.isKeyWindow }) ?? scene?.windows.first {
+                return window.rootViewController
+            }
+        }
+        return UIApplication.shared.delegate?.window??.rootViewController
+    }
     static let FORM_OPERATION_CANCELED: Int = 1
     static let FORM_COULD_NOT_BE_OPEN: Int = 2
     
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "github.com/clovisnicolas/flutter_contacts", binaryMessenger: registrar.messenger())
-        let rootViewController = UIApplication.shared.delegate!.window!!.rootViewController!;
-        let instance = SwiftContactsServicePlugin(rootViewController)
+        let instance = SwiftContactsServicePlugin()
         registrar.addMethodCallDelegate(instance, channel: channel)
         instance.preLoadContactView()
     }
 
-    init(_ rootViewController: UIViewController) {
-        self.rootViewController = rootViewController
+    override init() {
+        super.init()
     }
 
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -218,7 +232,7 @@ public class SwiftContactsServicePlugin: NSObject, FlutterPlugin, CNContactViewC
         controller.delegate = self
         DispatchQueue.main.async {
          let navigation = UINavigationController .init(rootViewController: controller)
-         let viewController : UIViewController? = UIApplication.shared.delegate?.window??.rootViewController
+         let viewController : UIViewController? = self.resolvedRootViewController
             viewController?.present(navigation, animated:true, completion: nil)
         }
         return nil
@@ -233,7 +247,7 @@ public class SwiftContactsServicePlugin: NSObject, FlutterPlugin, CNContactViewC
     
     @objc func cancelContactForm() {
         if let result = self.result {
-            let viewController : UIViewController? = UIApplication.shared.delegate?.window??.rootViewController
+            let viewController : UIViewController? = self.resolvedRootViewController
             viewController?.dismiss(animated: true, completion: nil)
             result(SwiftContactsServicePlugin.FORM_OPERATION_CANCELED)
             self.result = nil
@@ -276,17 +290,18 @@ public class SwiftContactsServicePlugin: NSObject, FlutterPlugin, CNContactViewC
             viewController.navigationItem.backBarButtonItem = UIBarButtonItem.init(title: backTitle == nil ? "Cancel" : backTitle, style: UIBarButtonItem.Style.plain, target: self, action: #selector(cancelContactForm))
              viewController.delegate = self
             DispatchQueue.main.async {
+                guard let presenter = self.resolvedRootViewController else { return }
                 let navigation = UINavigationController .init(rootViewController: viewController)
-                var currentViewController = UIApplication.shared.keyWindow?.rootViewController
-                while let nextView = currentViewController?.presentedViewController {
+                var currentViewController: UIViewController = presenter
+                while let nextView = currentViewController.presentedViewController {
                     currentViewController = nextView
                 }
                 let activityIndicatorView = UIActivityIndicatorView.init(style: UIActivityIndicatorView.Style.gray)
-                activityIndicatorView.frame = (UIApplication.shared.keyWindow?.frame)!
+                activityIndicatorView.frame = presenter.view.bounds
                 activityIndicatorView.startAnimating()
                 activityIndicatorView.backgroundColor = UIColor.white
                 navigation.view.addSubview(activityIndicatorView)
-                currentViewController!.present(navigation, animated: true, completion: nil)
+                currentViewController.present(navigation, animated: true, completion: nil)
                 
                 DispatchQueue.main.asyncAfter(deadline: .now()+0.5 ){
                     activityIndicatorView.removeFromSuperview()
@@ -308,7 +323,7 @@ public class SwiftContactsServicePlugin: NSObject, FlutterPlugin, CNContactViewC
         contactPicker.delegate = self
         //contactPicker!.displayedPropertyKeys = [CNContactPhoneNumbersKey];
         DispatchQueue.main.async {
-            self.rootViewController.present(contactPicker, animated: true, completion: nil)
+            self.resolvedRootViewController?.present(contactPicker, animated: true, completion: nil)
         }
     }
 
